@@ -1,0 +1,84 @@
+---
+title: "Folder sealing flow"
+description: "Upload versions, poll sealing status, and download certificates and ZIP packages."
+icon: "folder-closed"
+---
+
+Folder sealing keeps multiple sealed versions of the same document grouped under one folder, creating a trusted version history. Read the [concept page](/sealing/folder-sealing) for what folders and versions mean; this guide covers the API flow.
+
+## The flow at a glance
+
+<Steps>
+  <Step title="Upload a file">
+    `POST /api/seal/public/folder-seal` with the file. Omit `folderId` to
+    create a new folder; pass it to add a new version to an existing folder.
+    Each upload is sealed as its own version.
+  </Step>
+  <Step title="Poll the status">
+    `GET /api/seal/public/folder-seal/status?folderId=...&version=...` until
+    `sealing_status` reports success.
+  </Step>
+  <Step title="Download the results">
+    `GET /api/seal/public/folder-seal/download?folderId=...&version=...&type=...`
+    with `type` = `certificate`, `zip`, or `url`.
+  </Step>
+</Steps>
+
+## Upload
+
+```bash
+# First upload: creates the folder, seals version 1
+curl -X POST "https://api.sealmyidea.com/api/seal/public/folder-seal" \
+  -H "SealApiToken: tok_YOUR_TOKEN" \
+  -F "file=@original-document.pdf" \
+  -F "regulation=ZertES"
+
+# Later upload: adds sealed version 2 to the same folder
+curl -X POST "https://api.sealmyidea.com/api/seal/public/folder-seal" \
+  -H "SealApiToken: tok_YOUR_TOKEN" \
+  -F "file=@translated-document.docx" \
+  -F "folderId=FOLDER_ID_FROM_FIRST_RESPONSE" \
+  -F "regulation=eIDAS"
+```
+
+The response returns the `folderId`, the created `version` number, the regulation, and the file name. Store the `folderId` and version for later downloads.
+
+## Check status
+
+```bash
+curl "https://api.sealmyidea.com/api/seal/public/folder-seal/status?folderId=FOLDER_ID&version=2.0" \
+  -H "SealApiToken: tok_YOUR_TOKEN"
+```
+
+The response includes `sealing_status`, the applied regulation, `sealedAt`, and `isZIPDownloaded` (whether the one-time ZIP download was already used).
+
+## Download
+
+Three download types:
+
+| `type` | Returns |
+|---|---|
+| `certificate` (default) | The sealing proof certificate as a PDF |
+| `zip` | The sealed files packaged as a ZIP archive |
+| `url` | JSON containing a public verification link for the version |
+
+```bash
+# Proof certificate (default)
+curl "https://api.sealmyidea.com/api/seal/public/folder-seal/download?folderId=FOLDER_ID&version=1.0" \
+  -H "SealApiToken: tok_YOUR_TOKEN" -o proof-certificate.pdf
+
+# Sealed files package
+curl "https://api.sealmyidea.com/api/seal/public/folder-seal/download?folderId=FOLDER_ID&version=1.0&type=zip" \
+  -H "SealApiToken: tok_YOUR_TOKEN" -o sealed-version.zip
+```
+
+<Warning>
+  The ZIP is a **one-time download per version**. Once fetched, that version's
+  ZIP cannot be downloaded again (`isZIPDownloaded` becomes `true`). Store it
+  safely on first download. The proof certificate and verification URL remain
+  available.
+</Warning>
+
+## Dashboard visibility
+
+Folders created through the API appear in the dashboard's Folder Sealing page with the same version history, status, and download options, including the one-time ZIP rule.

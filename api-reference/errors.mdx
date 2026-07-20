@@ -1,0 +1,79 @@
+---
+title: "Error reference"
+description: "All error codes, HTTP status codes, and retry guidance."
+icon: "triangle-exclamation"
+---
+
+All API errors return a JSON response with the following shape:
+
+```json
+{
+  "status": false,
+  "message": "Human-readable error description",
+  "error": "ERROR_CODE"
+}
+```
+
+HTTP status codes follow standard conventions. The `error` field contains a machine-readable code you can use for programmatic error handling.
+
+## Error codes
+
+| Error code               | HTTP status | Description                              | Recommended action                                    |
+| ------------------------ | ----------- | ---------------------------------------- | ----------------------------------------------------- |
+| `MISSING_TOKEN`          | 401         | `SealApiToken` header is missing         | Include the `SealApiToken` header in every request    |
+| `INVALID_TOKEN`          | 403         | Token is invalid or call quota exhausted | Check your token is valid; top up your subscription   |
+| `MISSING_FILE`           | 400         | No PDF file was included in the request  | Attach a PDF in the `pdf` field (multipart/form-data) |
+| `UNSUPPORTED_REGULATION` | 400         | Regulation is not `ZertES` or `eIDAS`    | Use exactly `ZertES` or `eIDAS` (case-sensitive)      |
+| `INVALID_SEAL_TYPE`      | 400         | `seal_type` must be `timestamp`          | Set `seal_type` to `timestamp`                        |
+| `PDF_PARSE_ERROR`        | 500         | The PDF could not be parsed              | Ensure the file is a valid, non-corrupted PDF         |
+| `SIGNING_FAILED`         | 500         | Swisscom AIS signing failed              | Retry; contact support if the issue persists          |
+| `RATE_LIMIT_EXCEEDED`    | 429         | Too many requests                        | Wait and retry with exponential backoff               |
+| `SERVER_ERROR`           | 500         | Unexpected internal server error         | Retry once; contact support if it continues           |
+
+## Handling errors
+
+Always check the HTTP status code first, then use the `error` field for specific handling:
+
+- `MISSING_TOKEN` / `INVALID_TOKEN`: fix your token or top up credits
+- `RATE_LIMIT_EXCEEDED`: wait for `Retry-After` seconds, then retry
+- `PDF_PARSE_ERROR`: the file itself is the problem; upload a different PDF
+
+## Retry strategy
+
+<Tip>
+  For transient errors (`SIGNING_FAILED`, `SERVER_ERROR`,
+  `RATE_LIMIT_EXCEEDED`), use exponential backoff with a maximum of 3 retries:
+  wait 1s, then 2s, then 4s between attempts.
+</Tip>
+
+```bash
+# Retry with exponential backoff (1s -> 2s -> 4s)
+for i in 1 2 3; do
+  RESPONSE=$(curl -s -o response.json -w "%{http_code}" \
+    -X POST "https://api.sealmyidea.com/api/seal/public/seal-my-data" \
+    -H "SealApiToken: tok_YOUR_TOKEN" \
+    -F "pdf=@document.pdf" \
+    -F "regulation=ZertES" \
+    -F 'signature_details={"name":"Jane","surname":"Doe"}')
+
+  if [ "$RESPONSE" -eq 200 ]; then
+    echo "Success"
+    break
+  fi
+
+  echo "Attempt $i failed (HTTP $RESPONSE). Retrying..."
+  sleep $((2 ** (i - 1)))
+done
+```
+
+## Rate limiting
+
+Rate limits are applied per API token. When exceeded, you receive a `429` response with a `Retry-After` header indicating how many seconds to wait before retrying.
+
+## Contact support
+
+If you encounter errors not listed here, or if errors persist after following the recommended actions, email [support@sealmyidea.com](mailto:support@sealmyidea.com) and include:
+
+- The full error response JSON
+- Your request details (endpoint, parameters)
+- The approximate time of the error

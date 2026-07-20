@@ -1,0 +1,74 @@
+---
+title: "Authentication"
+description: "Authenticate SealAPI requests with your API token or an OAuth bearer token."
+icon: "key"
+---
+
+Every request to the SealAPI must be authenticated. Two schemes are supported; the API token is the simplest.
+
+## API token (SealApiToken header)
+
+Include your API token in every request using the `SealApiToken` header:
+
+```http
+SealApiToken: tok_YOUR_TOKEN
+```
+
+API tokens begin with the prefix `tok_`. Never share your token publicly or include it in client-side code.
+
+### Getting your token
+
+1. Log in to the SealAPI dashboard
+2. Go to **Dashboard > API Keys** (also shown on the dashboard as **Your Secret Key** and in **Profile > API Key**)
+3. Copy your token
+
+![API token location on the dashboard](/images/dashboard-api-token.png)
+
+### Token validity
+
+Your token is valid until it is revoked or your subscription's API call quota is exhausted. When exhausted, requests return a `403 INVALID_TOKEN` error. Top up credits from the dashboard.
+
+## OAuth 2.0 bearer token
+
+As an alternative to the static token, the SealAPI accepts OAuth 2.0 access tokens obtained through the authorization-code flow:
+
+```http
+Authorization: Bearer YOUR_ACCESS_TOKEN
+```
+
+The access token must carry the `seal` scope. OAuth clients are provisioned by the SealMyIdea team during onboarding; see the [OAuth flow guide](/guides/oauth-flow) for the full authorize and token exchange sequence.
+
+## Optional header: timezone
+
+Pass an IANA timezone to control how timestamps are formatted in the sealed document:
+
+```http
+X-Timezone: Europe/Zurich
+```
+
+If omitted, the server defaults to **UTC**. Valid values are standard IANA timezone strings such as `Europe/London`, `America/New_York`, or `Asia/Dubai`.
+
+## Example: authenticated request
+
+```bash
+curl -X POST "https://api.sealmyidea.com/api/seal/public/seal-my-data" \
+  -H "SealApiToken: tok_YOUR_TOKEN" \
+  -H "X-Timezone: Europe/Zurich" \
+  -F "pdf=@document.pdf" \
+  -F "regulation=ZertES" \
+  -F "seal_type=timestamp" \
+  -F 'signature_details={"name":"Jane","surname":"Doe"}' \
+  -o sealed-document.pdf
+```
+
+## Security best practices
+
+<Warning>
+  Keep your API token private. Do not commit it to source control or expose it
+  in frontend JavaScript. Use environment variables on your server.
+</Warning>
+
+- Store your token in an environment variable, never in code
+- Rotate your token immediately if you suspect it has been compromised; revoked tokens are invalidated instantly
+- Use one token per environment (development, staging, production)
+- Monitor token usage in the dashboard for unusual activity

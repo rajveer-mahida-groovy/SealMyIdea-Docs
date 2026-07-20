@@ -1,0 +1,92 @@
+---
+title: "MAB multi-signer flow"
+description: "Collect qualified signatures from one or many people via Swisscom Mobile ID."
+icon: "users"
+---
+
+MAB (Multiple Authentication Broker) gets a PDF digitally signed by one or more people. Each signer approves the document from their phone using the Swisscom signing app. No paper, no scanning, fully legally binding.
+
+## The flow at a glance
+
+<Steps>
+  <Step title="Upload the PDF and declare the signers">
+    `POST /api/seal/public/seal-my-data/mab` with the PDF, a `signers` array,
+    and your `client_redirect_url`.
+  </Step>
+  <Step title="Redirect the owner to the consent URL">
+    The response contains a `consent_url`. Redirect the first signer (the
+    owner) there; they approve the document in the Swisscom app on their
+    phone. Swisscom notifies the SealMyIdea backend automatically.
+  </Step>
+  <Step title="Receive the signer back on your redirect URL">
+    After approving (or declining), the signer is redirected to your
+    `client_redirect_url` with result query parameters.
+  </Step>
+  <Step title="Co-signers sign in sequence">
+    Each co-signer receives an email invitation and signs in order.
+  </Step>
+  <Step title="Download the final document">
+    Once everyone has signed, download the sealed PDF via
+    `GET /api/seal/public/documents/{document_id}/download`.
+  </Step>
+</Steps>
+
+## Declaring signers
+
+Pass `signers` as a JSON-stringified array (1 to 21 entries). The **first signer is the owner** who starts the process; the rest are **co-signers**.
+
+| Property | Required | Description |
+|---|---|---|
+| `mobile` | Yes | The signer's mobile number, for example `+41791234567`, used for Swisscom Mobile ID verification |
+| `name` | No | Display name; defaults to `"Signer"` |
+| `email` | Co-signers only | Required for co-signers so they receive their invitation email |
+
+```bash
+curl -X POST "https://api.sealmyidea.com/api/seal/public/seal-my-data/mab" \
+  -H "SealApiToken: tok_YOUR_TOKEN" \
+  -F "pdf=@contract.pdf" \
+  -F "regulation=ZertES" \
+  -F "client_redirect_url=https://yourapp.com/signing-complete" \
+  -F "append_blank_page=true" \
+  -F 'signers=[
+    {"mobile":"+41791234567","name":"John Doe","email":"john@example.com"},
+    {"mobile":"+41797654321","name":"Jane Smith","email":"jane@example.com"}
+  ]'
+```
+
+<Warning>
+  Signature boxes are always placed on a dedicated page to avoid overlapping
+  your content. Either set `append_blank_page` to `"true"` (a blank page is
+  appended automatically), or make sure the last page of your uploaded PDF is
+  already blank. If neither is true, signature boxes will overlap your
+  document content.
+</Warning>
+
+## Redirect parameters
+
+When a signer returns to your `client_redirect_url`:
+
+- **Success**: `?status=signed&document_id=...&signer_id=...`, plus `is_finished=true` once ALL signers are done
+- **Declined or error**: `?status=error&document_id=...&signer_id=...&error=...`
+
+Use `is_finished=true` as your signal to fetch the final document.
+
+## Retrying a broken session
+
+If the owner closed the consent page, declined, or the session expired, generate a fresh consent URL for the **same** document:
+
+```bash
+curl -X POST "https://api.sealmyidea.com/api/seal/public/seal-my-data/mab/DOC_ID/retry" \
+  -H "SealApiToken: tok_YOUR_TOKEN" \
+  -H "Content-Type: application/json"
+```
+
+The response contains a new `consent_url`. Retrying does not create a new document and does not consume extra credits for the same signer.
+
+## Tracking progress
+
+Poll `GET /api/seal/public/documents?type=mab&status=pending` to see documents still awaiting signatures, or filter by `status=completed` to find finished ones. Documents created via the API also appear in the dashboard's MAB section under the **External API** tab.
+
+## Credits
+
+1 e-Signature credit is consumed for the owner and 1 per co-signer, each under that signer's regulation. An active MAB subscription is required.

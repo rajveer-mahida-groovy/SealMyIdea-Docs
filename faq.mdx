@@ -1,0 +1,109 @@
+---
+title: "FAQ"
+description: "Quick answers to common questions about SealAPI integration, usage, and billing."
+icon: "circle-question"
+---
+
+## General
+
+<AccordionGroup>
+  <Accordion title="What is SealAPI?">
+    SealAPI is a REST API that lets you digitally seal PDF documents with
+    legally binding timestamps and signatures, compliant with Swiss **ZertES**
+    and European **eIDAS** regulations, via the Swisscom All-in Signing
+    Service.
+  </Accordion>
+  <Accordion title="What file formats are supported?">
+    PDF files on all sealing endpoints; the folder-seal upload also accepts
+    DOC files. Files must not be password-protected or encrypted.
+  </Accordion>
+  <Accordion title="What regulations are available?">
+    `ZertES` (the Swiss Federal Electronic Signatures Act) and `eIDAS` (the EU
+    regulation on electronic identification). Values are case-sensitive.
+  </Accordion>
+</AccordionGroup>
+
+## Authentication and tokens
+
+<AccordionGroup>
+  <Accordion title="How do I get my API token?">
+    Log in to the SealAPI dashboard and copy it from **Dashboard > API Keys**.
+  </Accordion>
+  <Accordion title="Can I have multiple API tokens?">
+    Yes. You can generate multiple tokens for different environments
+    (development, staging, production). Each token has its own credit balance.
+  </Accordion>
+  <Accordion title="What happens if my token is compromised?">
+    Immediately revoke the token from the dashboard and generate a new one.
+    Revoked tokens are invalidated instantly.
+  </Accordion>
+</AccordionGroup>
+
+## Sealing and signatures
+
+<AccordionGroup>
+  <Accordion title="What is the difference between Timestamp, On-Demand, and MAB sealing?">
+    | Seal type     | Process                                               | Response            |
+    | ------------- | ----------------------------------------------------- | ------------------- |
+    | **Timestamp** | Instant; applies a Swisscom AIS timestamp signature   | Sealed PDF returned |
+    | **On-Demand** | Sends a signing request to the signer's phone (MSISDN)| Async; poll status  |
+    | **MAB**       | Multi-signer flow via a Swisscom consent URL          | Async; consent URL  |
+
+    See [Seal types](/sealing/seal-types) for the full comparison.
+  </Accordion>
+  <Accordion title="How long does the sealing process take?">
+    Timestamp sealing is instant (typically under 5 seconds). On-Demand and
+    MAB depend on the signers approving on their phones.
+  </Accordion>
+  <Accordion title="Can I seal multiple documents in a single request?">
+    Each request processes one file. For batches, send sequential requests, or
+    use [folder sealing](/guides/folder-seal-flow) to group sealed versions
+    under one folder.
+  </Accordion>
+  <Accordion title="What is the maximum file size?">
+    MAB and folder-seal uploads accept files up to **100 MB**. Oversized files
+    return a `400 Bad Request` error.
+  </Accordion>
+</AccordionGroup>
+
+## Billing and credits
+
+<AccordionGroup>
+  <Accordion title="How are credits consumed?">
+    Each sealing operation consumes **1 credit per signer**. For MAB
+    multi-signer requests, 1 credit is consumed for the owner and 1 per
+    co-owner, each under that signer's regulation.
+  </Accordion>
+  <Accordion title="What happens when I run out of credits?">
+    API requests return a `403 Forbidden` response indicating insufficient
+    credits. Purchase additional credits from the dashboard.
+  </Accordion>
+  <Accordion title="Do failed requests consume credits?">
+    No. Credits are only consumed when a document is successfully sealed.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Why am I getting a 401 Unauthorized error?">
+    The `SealApiToken` header is missing or invalid. Check that the header
+    name is exactly `SealApiToken` (case-sensitive) and the token value is
+    correct and not revoked.
+  </Accordion>
+  <Accordion title="Why is my PDF rejected?">
+    Common reasons: the file is password-protected or encrypted, it is not a
+    valid PDF, it exceeds the size limit, or the request `Content-Type` is not
+    `multipart/form-data`.
+  </Accordion>
+  <Accordion title="The On-Demand signing request was not received on the phone">
+    Ensure the `msisdn` parameter is in international format (for example
+    `+41791234567`) and the number is registered with a Swisscom-compatible
+    provider.
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Still stuck? Check the [error reference](/api-reference/errors) for detailed
+  error codes, or contact [support](/support) for personalized help.
+</Tip>

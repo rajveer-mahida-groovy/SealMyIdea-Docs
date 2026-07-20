@@ -1,0 +1,62 @@
+---
+title: "Seal types"
+description: "Every kind of sealing SealMyIdea offers, and when to use each."
+icon: "layer-group"
+---
+
+SealMyIdea offers three core seal types, available both in the web app and through the SealAPI.
+
+## Trusted Timestamp (e-seal)
+
+An organization-level seal that proves **integrity and time**: the document existed at the sealed moment and has not changed since. No personal signature is involved.
+
+- **Synchronous**: the sealed PDF is returned immediately
+- A qualified electronic timestamp is applied via Swisscom Trust Services
+- A visual signature box and QR code are stamped on the PDF
+- Consumes folder-sealing or timestamp credits
+
+Best for: protecting ideas, drafts, designs, and any document where you need court-ready proof of existence rather than a personal signature.
+
+API: [Timestamp seal a PDF](/api-reference/sealing/timestamp-seal-a-pdf)
+
+## On-Demand qualified electronic signature (QES)
+
+A personal **qualified electronic signature** issued on demand through Swisscom, without prior Mobile ID registration. The signer provides their name and verified mobile number (MSISDN), then approves the signature on their phone.
+
+- **Asynchronous**: the signing request goes to the signer's phone; poll the document status until it completes
+- Produces a QES that is legally equivalent to a handwritten signature (eIDAS for the EU, ZertES for Switzerland)
+- Consumes e-Signature credits for the selected regulation
+
+Best for: single-signer agreements where the signer may not have a registered Swisscom Mobile ID.
+
+## MAB multi-signer signing
+
+MAB (Multiple Authentication Broker) collects qualified signatures from **one or many people**. Each signer approves the document from their phone via the Swisscom signing app.
+
+- Up to **20 co-signers** besides the owner; co-signers are invited by email and sign in sequence
+- The owner can choose to sign first or last, revoke a pending signer, or stop reminder emails
+- Requires an active MAB subscription; 1 credit is used per signer, per that signer's regulation
+- **Asynchronous with a redirect flow**: you receive a consent URL for the owner, and each signer returns to your redirect URL after signing
+
+Best for: contracts and certificates that several stakeholders must sign.
+
+API: [MAB multi-signer signing](/api-reference/sealing/mab-multi-signer-signing) and the [MAB flow guide](/guides/mab-flow)
+
+## Comparison
+
+| | Trusted Timestamp | On-Demand QES | MAB multi-signer |
+|---|---|---|---|
+| Proves | Integrity + time | Personal signature | Personal signatures (1 to 21 people) |
+| Signature level | Qualified e-seal / timestamp | Qualified electronic signature | Qualified electronic signature |
+| Processing | Synchronous | Asynchronous (phone approval) | Asynchronous (consent URL + email invites) |
+| Mobile ID registration needed | No | No (on-demand identity) | Yes (Swisscom Mobile ID) |
+| Credits | Timestamp / folder credits | e-Signature credits | 1 credit per signer |
+| Regulations | ZertES, eIDAS | ZertES, eIDAS | ZertES, eIDAS |
+
+## More sealing surfaces
+
+Beyond the three core types:
+
+- **[Folder sealing](/sealing/folder-sealing)**: seal many files, or many versions of one document, together under a single folder with a proof certificate.
+- **[Certificate sealing](/sealing/certificate-sealing)**: create certificates from a PDF or template, position a QR overlay, optionally collect signatures, then seal. Supports extra signature variants including hand-signing.
+- **UAE Pass sealing**: for accounts signed in with UAE Pass, documents can be sealed with a UAE Pass digital signature (PAdES or CAdES). Available in the web app for UAE Pass accounts.

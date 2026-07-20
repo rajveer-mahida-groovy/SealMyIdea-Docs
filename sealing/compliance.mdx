@@ -1,0 +1,44 @@
+---
+title: "Compliance and standards"
+sidebarTitle: "Compliance"
+description: "The legal frameworks and technical standards behind every SealMyIdea seal."
+icon: "scale-balanced"
+---
+
+## Legal frameworks
+
+SealMyIdea seals and signatures are issued under two electronic signature laws, selected per document:
+
+| Regulation | Jurisdiction | What it governs |
+|---|---|---|
+| **ZertES** | Switzerland | The Swiss federal act on electronic signatures |
+| **eIDAS** | European Union | The EU regulation on electronic identification and trust services |
+
+For UAE-based signing, **UAE Pass** digital signatures are supported as a third option in the web app.
+
+<Note>
+  Regulation values in the API are case-sensitive: exactly `ZertES` or
+  `eIDAS`. Lowercase values are rejected.
+</Note>
+
+## Qualified electronic signatures
+
+A **qualified electronic signature (QES)** is the strongest signature level under both frameworks and is legally equivalent to a handwritten signature in the respective jurisdiction. SealMyIdea issues QES through **Swisscom Trust Services**, a qualified trust service provider (QTSP), using:
+
+- **Swisscom Mobile ID** for registered signers
+- The **on-demand flow** (ETSI-standard identification with a verified mobile number) for signers without prior registration
+- **UAE Pass** for UAE-based signers
+
+## Technical standards
+
+- **PAdES** (PDF Advanced Electronic Signatures): signatures are embedded directly in the PDF. UAE Pass e-seals also support **CAdES**.
+- **SHA-256** digests for document hashing.
+- **Qualified timestamps** from Swisscom Trust Services fix the sealing time.
+- **LTV (long-term validation)**: certificate chains and revocation data are embedded in the sealed PDF, so verification keeps working after certificates expire.
+- **ETSI** standards govern the on-demand QES identification and signing flow.
+
+## What this means in practice
+
+- A timestamp seal proves integrity and existence at a point in time, backed by a qualified timestamp
+- A QES binds a specific, identified person to the document with handwritten-equivalent legal effect
+- Both are verifiable by any third party via the [Doc Validator](/sealing/verification) or standard PDF signature validation in tools like Adobe Acrobat

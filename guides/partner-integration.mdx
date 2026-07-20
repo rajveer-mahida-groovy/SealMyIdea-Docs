@@ -1,0 +1,119 @@
+---
+title: "Partner integration"
+description: "B2B integration: encrypted handshake, iframe embedding, user registration, and webhooks."
+icon: "handshake"
+---
+
+The Partner API lets approved B2B partners embed SealMyIdea, register users under their partnership, and exchange webhook events. It is a closed integration: partners are onboarded manually and receive dedicated credentials.
+
+<Info>
+  Partner onboarding provides you with a `clientId`, a `clientSecret`, and the
+  SealMyIdea **RSA public key** used to encrypt every request payload. Contact
+  [support@sealmyidea.com](mailto:support@sealmyidea.com) to become a partner.
+</Info>
+
+## Authentication: encrypted payloads
+
+Every Partner API request is a JSON `POST` with a single field:
+
+```json
+{ "encryptedPayload": "BASE64_ENCODED_CIPHERTEXT" }
+```
+
+To build it:
+
+1. Construct the JSON payload for the endpoint, always including your `clientId` and `clientSecret`
+2. Encrypt it with the SealMyIdea public key using **RSA-OAEP with SHA-256**
+3. Base64-encode the ciphertext
+
+```javascript
+const crypto = require("crypto");
+
+function encryptPayload(payload, publicKeyPem) {
+  const ciphertext = crypto.publicEncrypt(
+    {
+      key: publicKeyPem,
+      padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+      oaepHash: "sha256",
+    },
+    Buffer.from(JSON.stringify(payload)),
+  );
+  return ciphertext.toString("base64");
+}
+
+const encryptedPayload = encryptPayload(
+  {
+    clientId: "YOUR_CLIENT_ID",
+    clientSecret: "YOUR_CLIENT_SECRET",
+    email: "user@example.com",
+    partner_user_id: "usr_123",
+  },
+  PUBLIC_KEY_PEM,
+);
+```
+
+A failed decryption returns `401 DECRYPTION_FAILED`; missing required fields return `400 INVALID_PAYLOAD`.
+
+## Endpoints
+
+### Generate an iframe token
+
+`POST /api/v1/auth/partner/generate-iframe-token`
+
+Returns a **single-use session key** for embedding SealMyIdea in an iframe (the lean handshake). Decrypted payload fields: `clientId`, `clientSecret`, `email`, `partner_user_id`.
+
+```json
+{ "status": true, "data": { "token": "SESSION_KEY" } }
+```
+
+Pass the session key to your embedded iframe; the SealMyIdea frontend exchanges it for a user session.
+
+### Register or sync a user
+
+`POST /api/v1/auth/partner/register-user`
+
+Creates a SealMyIdea account under your partnership, or synchronizes an existing one. Decrypted payload fields:
+
+| Field | Required | Description |
+|---|---|---|
+| `clientId`, `clientSecret` | Yes | Your partner credentials |
+| `email` | Yes | The user's email |
+| `partner_user_id` | Yes | Your internal ID for the user |
+| `fullname` | Yes | The user's full name |
+| `password` | Yes | Initial password for the account |
+| `ref_code`, `ref_link_id`, `page_source` | No | Referral attribution |
+
+```json
+{
+  "status": true,
+  "message": "User registered successfully",
+  "data": { "email": "user@example.com", "isNew": true }
+}
+```
+
+`isNew` is `false` when an existing account was synchronized instead of created.
+
+### Send a webhook event
+
+`POST /api/v1/auth/partner/webhook`
+
+Inbound events from the partner to SealMyIdea, for example `contract_activated`. Decrypted payload fields: `clientId`, `clientSecret`, `type`, and for contract events `email`. Unknown users return `404 RESOURCE_NOT_FOUND`.
+
+## Error envelope
+
+Partner endpoints use a `code` field for machine-readable errors:
+
+```json
+{ "status": false, "code": "INVALID_PAYLOAD", "message": "..." }
+```
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `INVALID_PAYLOAD` | 400 | Missing `encryptedPayload` or required decrypted fields |
+| `DECRYPTION_FAILED` | 401 | Payload could not be decrypted; check your encryption and keys |
+| `RESOURCE_NOT_FOUND` | 404 | No user found for the given email |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+<Note>
+  All partner API calls are logged on the SealMyIdea side for audit purposes.
+</Note>
