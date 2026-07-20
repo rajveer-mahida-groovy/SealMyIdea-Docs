@@ -1,0 +1,57 @@
+---
+title: "API introduction"
+sidebarTitle: "Introduction"
+description: "Base URL, versioning, request rules, and rate limits for the SealMyIdea API."
+icon: "terminal"
+---
+
+The SealAPI is a REST API for sealing PDF documents with legally binding digital signatures and timestamps, compliant with Swiss **ZertES** and European **eIDAS** regulations.
+
+## Base URL
+
+All API requests use the following base URL:
+
+```
+https://api.sealmyidea.com
+```
+
+All endpoints are HTTPS only. HTTP requests are not accepted.
+
+## Versioning
+
+The current API version is **v1**. Breaking changes will be versioned using a new path prefix (for example `/v2/`), and you will receive advance notice before any breaking change.
+
+## Authentication
+
+Send your API token in the `SealApiToken` header, or an OAuth 2.0 bearer token with the `seal` scope in the `Authorization` header. See [Authentication](/authentication) for details. The public verification endpoints require no authentication.
+
+## Request rules
+
+<Note>
+  The most common integration mistakes, all easy to avoid:
+</Note>
+
+- Upload endpoints require `multipart/form-data`, not JSON
+- `regulation` is case-sensitive: exactly `ZertES` or `eIDAS` (`zertes` fails)
+- `signature_details` and `signers` must be **JSON-stringified** form fields
+- Password-protected or encrypted PDFs cannot be sealed
+- MAB and folder-seal uploads accept files up to **100 MB**; oversized files return `400`
+
+## Response conventions
+
+- Successful sealing and download calls return the binary file directly (`application/pdf` or `application/zip`) with a `Content-Disposition: attachment` header
+- All JSON responses carry a boolean `status` field
+- Errors follow a single envelope; see the [error reference](/api-reference/errors)
+
+## Rate limits
+
+Requests are rate-limited per API token. When exceeded you receive a `429 Too Many Requests` response with a `Retry-After` header indicating how many seconds to wait. Use exponential backoff when retrying.
+
+<Info>
+  If you consistently hit rate limits, consider upgrading your subscription
+  plan or spreading requests over time.
+</Info>
+
+## Credits and quota
+
+Each successful sealing operation consumes credits from your token's balance. For MAB multi-signer requests, 1 credit is consumed for the owner and 1 per co-signer. Failed requests do not consume credits. When the balance is exhausted, requests return `403 INVALID_TOKEN` until you top up.

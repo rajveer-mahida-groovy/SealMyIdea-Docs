@@ -1,0 +1,67 @@
+---
+title: "Introduction"
+description: "SealMyIdea seals your documents with legally binding digital signatures and qualified timestamps, compliant with Swiss ZertES and European eIDAS law."
+icon: "book-open"
+---
+
+## What is SealMyIdea?
+
+SealMyIdea is a Swiss trust platform for protecting documents and ideas. It applies a cryptographic, legally recognized seal to your PDF so that its content, and the exact time it existed, are provably fixed and tamper-evident.
+
+Every seal is created through **Swisscom Trust Services**, a qualified trust service provider (QTSP), and complies with:
+
+- **ZertES**, the Swiss federal law on electronic signatures
+- **eIDAS**, the European Union regulation on electronic identification and trust services
+
+A sealed document carries an embedded PAdES digital signature, a qualified timestamp, a SHA-256 content hash, and a QR code that anyone can scan to verify the document's authenticity. Sealing is irreversible: once sealed, a document is permanently timestamped and any later modification is detectable.
+
+## Who is it for?
+
+<Columns cols={2}>
+  <Card title="Creators and businesses" icon="lightbulb">
+    Protect ideas, contracts, designs, and evolving document versions with
+    court-ready proof of existence and integrity, directly from the web app.
+  </Card>
+  <Card title="Developers" icon="code">
+    Integrate sealing into your own product with the SealAPI: one HTTPS call to
+    seal a PDF, collect qualified signatures, or seal whole folders.
+  </Card>
+</Columns>
+
+## What can you do with it?
+
+- **Timestamp sealing**: apply a qualified electronic timestamp (organization e-seal) to any PDF in a single synchronous API call
+- **Qualified electronic signatures (QES)**: collect personal signatures that are legally equivalent to handwritten ones, approved by the signer on their phone via Swisscom Mobile ID
+- **Multi-signer workflows**: up to 20 co-signers per document, invited by email and signing in sequence
+- **Folder sealing**: keep multiple sealed versions of one document grouped in a folder, with a proof certificate and a trusted version history
+- **Verification**: anyone can verify a sealed document via its QR code or the public document validator, with no account needed
+
+## Explore the docs
+
+<Columns cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Seal your first PDF in minutes with the SealAPI.
+  </Card>
+  <Card title="What is sealing?" icon="stamp" href="/sealing/overview">
+    How a seal works: hash, timestamp, signature, QR code, and legal effect.
+  </Card>
+  <Card title="Seal types" icon="layer-group" href="/sealing/seal-types">
+    Timestamp e-seal, on-demand QES, and MAB multi-signer signing compared.
+  </Card>
+  <Card title="API reference" icon="terminal" href="/api-reference/introduction">
+    Full endpoint reference with an interactive playground.
+  </Card>
+</Columns>
+
+## Supported regulations
+
+| Regulation | Jurisdiction   | Use case                                          |
+| ---------- | -------------- | ------------------------------------------------- |
+| **ZertES** | Switzerland    | Documents governed by Swiss federal law           |
+| **eIDAS**  | European Union | Documents governed by EU electronic signature law |
+
+<Tip>
+  Need help? Reach out to
+  [support@sealmyidea.com](mailto:support@sealmyidea.com). We are happy to
+  assist with integration questions.
+</Tip>

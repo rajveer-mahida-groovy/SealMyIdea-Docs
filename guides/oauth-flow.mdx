@@ -1,0 +1,105 @@
+---
+title: "OAuth 2.0 flow"
+description: "Obtain bearer access tokens for the SealAPI via the authorization-code flow."
+icon: "lock"
+---
+
+As an alternative to the static `SealApiToken`, your application can access the SealAPI on behalf of a SealMyIdea user through OAuth 2.0. The flow is the standard **authorization-code grant** with rotating refresh tokens.
+
+<Info>
+  OAuth clients are provisioned by the SealMyIdea team during onboarding. You
+  receive a `client_id`, a `client_secret`, and register your redirect URIs
+  and scopes. Contact
+  [support@sealmyidea.com](mailto:support@sealmyidea.com) to get set up.
+</Info>
+
+## The flow at a glance
+
+<Steps>
+  <Step title="Send the user to consent">
+    Your app sends the user to the SealMyIdea consent screen with your
+    `client_id`, `redirect_uri`, `scope=seal`, and a `state` value.
+  </Step>
+  <Step title="User grants consent">
+    The logged-in user approves the request. SealMyIdea redirects the browser
+    back to your `redirect_uri` with a single-use authorization `code` and
+    your `state`.
+  </Step>
+  <Step title="Exchange the code for tokens">
+    Your server calls the token endpoint with the code and your client
+    credentials, receiving an access token and a refresh token.
+  </Step>
+  <Step title="Call the SealAPI">
+    Send the access token as `Authorization: Bearer ...` on SealAPI requests.
+  </Step>
+</Steps>
+
+## Token exchange
+
+```bash
+curl -X POST "https://api.sealmyidea.com/seal-my-idea/v1/oauth/token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "authorization_code",
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "code": "AUTH_CODE_FROM_REDIRECT",
+    "redirect_uri": "https://yourapp.com/callback"
+  }'
+```
+
+Response:
+
+```json
+{
+  "status": true,
+  "access_token": "eyJhbGciOi...",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "refresh_token": "d4f9a1...",
+  "scope": "seal"
+}
+```
+
+## Refreshing tokens
+
+Refresh tokens are **rotated on every use**: each refresh returns a new refresh token and invalidates the old one. Store the newest one.
+
+```bash
+curl -X POST "https://api.sealmyidea.com/seal-my-idea/v1/oauth/token" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "refresh_token",
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET",
+    "refresh_token": "YOUR_LATEST_REFRESH_TOKEN"
+  }'
+```
+
+## Using the access token against the SealAPI
+
+The access token carries the `seal` scope and works on every SealAPI endpoint in place of the `SealApiToken` header:
+
+```bash
+curl -X POST "https://api.sealmyidea.com/api/seal/public/seal-my-data" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -F "pdf=@document.pdf" \
+  -F "regulation=ZertES" \
+  -F 'signature_details={"name":"Jane","surname":"Doe"}' \
+  -o sealed-document.pdf
+```
+
+Calls are billed against the connected user's API credit balance, exactly like `SealApiToken` calls.
+
+## Error responses
+
+| Error | Meaning |
+|---|---|
+| `invalid_client` (401) | Wrong `client_id` or `client_secret` |
+| `invalid_grant` (400) | The code is expired, already used, or bound to a different client or redirect URI; or the refresh token is invalid or revoked |
+| `unsupported_grant_type` (400) | `grant_type` must be `authorization_code` or `refresh_token` |
+
+<Note>
+  Authorization codes are single-use and short-lived. If an exchange fails,
+  restart the flow from the consent step rather than retrying the same code.
+</Note>

@@ -1,0 +1,4 @@
+/* Larger navbar logo (default h-7 = 28px is too small for the wide lockup) */
+img.nav-logo {
+  height: 2.25rem;
+}

@@ -1,0 +1,63 @@
+---
+title: "What is sealing?"
+sidebarTitle: "Overview"
+description: "How a SealMyIdea seal proves what a document contained and when it existed."
+icon: "stamp"
+---
+
+Sealing applies a cryptographic, legally recognized seal to a PDF so that its content, and the time it existed, are provably fixed and tamper-evident. If even a single byte of a sealed document changes afterwards, verification fails.
+
+## What a seal contains
+
+When SealMyIdea seals a document, it produces:
+
+<Steps>
+  <Step title="Cryptographic hash">
+    A SHA-256 digest of the document is computed. This fingerprint changes if
+    the document changes in any way.
+  </Step>
+  <Step title="Qualified timestamp">
+    A verified timestamp from Swisscom Trust Services fixes the exact moment
+    the document existed, under ZertES or eIDAS rules.
+  </Step>
+  <Step title="Embedded digital signature">
+    A PAdES signature is embedded directly in the PDF using the Swisscom AIS
+    (All-in Signing Service), with long-term validation (LTV) data so the seal
+    stays verifiable even after certificates expire.
+  </Step>
+  <Step title="Visual signature and QR code">
+    A signature box and a QR code are stamped on the document. Scanning the QR
+    code opens a public verification page for that exact document.
+  </Step>
+</Steps>
+
+For folder sealing, you additionally get a ZIP package of the sealed files and a "PDF with proof" certificate summarizing the seal.
+
+## Key properties
+
+- **Irreversible**: once sealed, a document is permanently timestamped and cannot be altered. There is no "unseal".
+- **Tamper-evident**: any modification after sealing makes the signature invalid, and the [Doc Validator](/sealing/verification) reports it.
+- **Independently verifiable**: anyone can verify a sealed PDF via its QR code or the public validator, with no SealMyIdea account.
+- **Legally grounded**: seals and signatures are issued through Swisscom Trust Services, a qualified trust service provider, under ZertES (Switzerland) and eIDAS (EU). See [Compliance](/sealing/compliance).
+
+## Seal or signature?
+
+The two serve different purposes and can be combined:
+
+| | Proves | Who |
+|---|---|---|
+| **Seal (trusted timestamp / e-seal)** | The document existed at a point in time and has not changed since | The organization / platform |
+| **Qualified electronic signature (QES)** | A specific person signed the document, with legal equivalence to a handwritten signature | An individual, approved on their phone via Swisscom Mobile ID |
+
+Read [Seal types](/sealing/seal-types) for every variant SealMyIdea offers.
+
+## Credits
+
+Sealing operations consume credits, purchased in the dashboard under Settings:
+
+- **Folder-sealing credits** for folder timestamp seals
+- **eIDAS / ZertES e-Signature credits** for qualified electronic signatures (separate counters per regulation)
+- **Certificate seal credits** for certificate sealing
+- **UAE Pass e-Signature credits** for UAE Pass signatures
+
+Agencies and tenants can share credit pools down their organization hierarchy.

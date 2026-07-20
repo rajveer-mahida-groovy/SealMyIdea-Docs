@@ -1,0 +1,1092 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SealMyIdea API",
+    "description": "REST API for sealing PDF documents with legally binding digital signatures and timestamps, compliant with Swiss ZertES and European eIDAS regulations.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "SealMyIdea Support",
+      "email": "support@sealmyidea.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.sealmyidea.com",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    { "sealApiToken": [] },
+    { "oauthBearer": [] }
+  ],
+  "tags": [
+    { "name": "Sealing", "description": "Seal PDF documents with timestamps and qualified electronic signatures" },
+    { "name": "Folder Sealing", "description": "Seal multiple versions of a document under one folder" },
+    { "name": "Documents", "description": "List sealed documents and download results" },
+    { "name": "Verification", "description": "Publicly verify sealed documents (no authentication)" },
+    { "name": "OAuth", "description": "OAuth 2.0 authorization-code flow for the SealAPI" },
+    { "name": "Partner", "description": "B2B partner integration endpoints (RSA-encrypted payloads)" }
+  ],
+  "paths": {
+    "/api/seal/public/seal-my-data": {
+      "post": {
+        "tags": ["Sealing"],
+        "summary": "Timestamp seal a PDF",
+        "operationId": "sealMyData",
+        "description": "Applies a legally binding digital timestamp to a PDF using the Swisscom AIS (All-in Signing Service). Synchronous: the sealed PDF is returned directly as a binary download. A visual signature (QR code + signature box) is always applied on the external API.",
+        "parameters": [
+          { "$ref": "#/components/parameters/XTimezone" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["pdf", "regulation", "signature_details"],
+                "properties": {
+                  "pdf": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The PDF file to seal."
+                  },
+                  "regulation": {
+                    "$ref": "#/components/schemas/Regulation"
+                  },
+                  "seal_type": {
+                    "type": "string",
+                    "enum": ["timestamp"],
+                    "description": "Optional. Must be `timestamp` if provided; this endpoint only supports timestamp sealing."
+                  },
+                  "signature_details": {
+                    "type": "string",
+                    "description": "JSON-stringified object with signer info. Minimum 2 and maximum 10 keys. All provided keys are rendered in the visual signature box. Example: `{\"name\":\"Jane\",\"surname\":\"Doe\",\"title\":\"CEO\"}`"
+                  },
+                  "signature_logo": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Optional custom logo for the signature box. Max 2 MB, JPG or PNG."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The sealed PDF, returned as a binary attachment (`Content-Disposition: attachment`).",
+            "content": {
+              "application/pdf": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/public/seal-my-data/on-demand": {
+      "post": {
+        "tags": ["Sealing"],
+        "summary": "On-demand seal (Swisscom Mobile ID)",
+        "operationId": "sealOnDemand",
+        "description": "Uploads the PDF and automatically triggers an MSISDN signing request via the signer's Swisscom Mobile ID. No browser redirection required. Asynchronous: poll the document status endpoint for completion, then download the sealed PDF.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["pdf", "regulation", "msisdn", "signature_details"],
+                "properties": {
+                  "pdf": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The PDF document to be sealed."
+                  },
+                  "regulation": {
+                    "$ref": "#/components/schemas/Regulation"
+                  },
+                  "msisdn": {
+                    "type": "string",
+                    "description": "The signer's mobile number registered with Swisscom Mobile ID, e.g. `+41791234567`."
+                  },
+                  "signature_details": {
+                    "type": "string",
+                    "description": "JSON-stringified object. Must contain at least `name` and `surname`; optional `title` and `department`."
+                  },
+                  "lang": {
+                    "type": "string",
+                    "enum": ["en", "de", "fr", "it"],
+                    "default": "en",
+                    "description": "Language for the Swisscom prompt on the signer's phone."
+                  },
+                  "country": {
+                    "type": "string",
+                    "default": "CH",
+                    "description": "The signer's country code."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signing request sent to the signer's phone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Signature request sent successfully to mobile." },
+                    "document_id": { "type": "string", "example": "60d5ec49f1b2c8a4e8d3f0a1" },
+                    "seal_type": { "type": "string", "example": "on_demand" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/public/seal-my-data/on-demand/{document_id}/retry": {
+      "post": {
+        "tags": ["Sealing"],
+        "summary": "Retry an on-demand seal",
+        "operationId": "retryOnDemand",
+        "description": "Triggers a fresh Mobile ID signing request for the same document when the signer failed to respond or the mobile prompt timed out.",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The document ID from the original on-demand request that failed to complete."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A fresh signing request was sent for the same document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "message": { "type": "string" },
+                    "document_id": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/seal/public/seal-my-data/mab": {
+      "post": {
+        "tags": ["Sealing"],
+        "summary": "MAB multi-signer signing",
+        "operationId": "sealMab",
+        "description": "Gets a PDF digitally signed by one or more people. Each signer approves the document from their phone via the Swisscom signing app. Returns a consent URL: redirect the first signer (the owner) to it; co-signers receive email invitations and sign in sequence.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["pdf", "signers", "client_redirect_url"],
+                "properties": {
+                  "pdf": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The PDF document to get signed. PDF only, max 100 MB."
+                  },
+                  "signers": {
+                    "type": "string",
+                    "description": "JSON-stringified array of signers (1 to 21 entries). The first signer is the owner and starts the signing; the rest are co-signers invited by email in sequence. Each signer: `mobile` (required, e.g. `+41791234567`), `name` (optional, defaults to \"Signer\"), `email` (optional, but required for co-signers to receive their invite)."
+                  },
+                  "client_redirect_url": {
+                    "type": "string",
+                    "description": "Where the signer is redirected after signing completes (or fails). Success: `?status=signed&document_id=...&signer_id=...` plus `is_finished=true` once ALL signers are done. Declined or error: `?status=error&...&error=...`."
+                  },
+                  "regulation": {
+                    "type": "string",
+                    "enum": ["ZertES", "eIDAS"],
+                    "default": "ZertES",
+                    "description": "The legal standard to seal under. Defaults to `ZertES`."
+                  },
+                  "append_blank_page": {
+                    "type": "string",
+                    "enum": ["true", "false"],
+                    "default": "false",
+                    "description": "Set to `\"true\"` to append a blank signature page at the end of the PDF. If left `\"false\"`, the last page of the uploaded PDF must already be blank, otherwise signature boxes will overlap your content."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signing session created. Redirect the owner to the consent URL.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Please redirect user to the consent URL to complete signing." },
+                    "document_id": { "type": "string", "example": "60d5ec49f1b2c8a4e8d3f0a1" },
+                    "consent_url": { "type": "string", "example": "https://consent.swisscom.com/..." }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/seal/public/seal-my-data/mab/{document_id}/retry": {
+      "post": {
+        "tags": ["Sealing"],
+        "summary": "Retry a MAB signing session",
+        "operationId": "retryMab",
+        "description": "Generates a fresh consent URL for the SAME document when the owner navigated away, declined, or the session expired. Does not create a new document. Redirect the owner to the new consent URL.",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The document ID received from the original MAB request."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A fresh signing session for the same document.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "document_id": { "type": "string" },
+                    "consent_url": { "type": "string", "example": "https://consent.swisscom.com/..." }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/seal/public/folder-seal": {
+      "post": {
+        "tags": ["Folder Sealing"],
+        "summary": "Upload and seal a file into a folder",
+        "operationId": "folderSeal",
+        "description": "Uploads a PDF or DOC file into a folder and seals it. Creates a new folder when no `folderId` is passed; adds a new sealed version when the folder already exists. Version numbers increase over time (1, 2, 3, ...).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The PDF or DOC file to upload and seal."
+                  },
+                  "folderId": {
+                    "type": "string",
+                    "description": "Existing folder identifier. If omitted, a new folder is created."
+                  },
+                  "regulation": {
+                    "type": "string",
+                    "enum": ["ZertES", "eIDAS"],
+                    "description": "Regulation to apply when sealing."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File uploaded and sealed as a new version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "File uploaded and sealed successfully" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "folderId": { "type": "string", "example": "fld_67c1f8c9c9f4" },
+                        "version": { "type": "number", "example": 2 },
+                        "regulation": { "type": "string", "example": "eIDAS" },
+                        "fileName": { "type": "string", "example": "translated-document.docx" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/seal/public/folder-seal/status": {
+      "get": {
+        "tags": ["Folder Sealing"],
+        "summary": "Check folder sealing status",
+        "operationId": "folderSealStatus",
+        "description": "Checks whether a specific folder version has finished sealing before attempting to download it.",
+        "parameters": [
+          {
+            "name": "folderId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The folder identifier returned by the upload request."
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The exact version to check, for example `2.0`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sealing status for the requested version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Sealing status retrieved successfully" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "folderId": { "type": "string" },
+                        "folderName": { "type": "string" },
+                        "version": { "type": "string", "example": "2.0" },
+                        "sealing_status": { "type": "string", "example": "success" },
+                        "isZIPDownloaded": { "type": "boolean", "description": "Whether the ZIP output has already been downloaded (ZIP downloads are one-time per version)." },
+                        "sealing_regulation": { "type": "string", "example": "ZertES" },
+                        "sealedAt": { "type": "number", "description": "Timestamp (ms) when sealing completed." },
+                        "updatedAt": { "type": "number", "description": "Timestamp (ms) of the latest status update." }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/seal/public/folder-seal/download": {
+      "get": {
+        "tags": ["Folder Sealing"],
+        "summary": "Download a sealed folder version",
+        "operationId": "folderSealDownload",
+        "description": "Downloads a specific sealed version from an existing folder. `type=certificate` (default) returns the proof PDF, `type=zip` returns the sealed files as a ZIP archive (one-time download per version), `type=url` returns a JSON response with a public verification link.",
+        "parameters": [
+          {
+            "name": "folderId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The folder identifier returned when the file was uploaded."
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The exact sealed version to download, for example `1.0`."
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["certificate", "zip", "url"],
+              "default": "certificate"
+            },
+            "description": "The download type."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The sealed certificate PDF (`type=certificate`), ZIP archive (`type=zip`), or a JSON object with the verification URL (`type=url`).",
+            "content": {
+              "application/pdf": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "application/zip": {
+                "schema": { "type": "string", "format": "binary" }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "type": { "type": "string", "example": "url" },
+                    "url": { "type": "string", "example": "https://hello.swisstrustlayer.com/verify-certificate/xxxx?version_id=xxxx&adminSeal=true" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/seal/public/documents": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "List sealed documents",
+        "operationId": "listDocuments",
+        "description": "Lists your sealed documents and their current status. Especially important for MAB and on-demand sealing, which are asynchronous.",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["timestamp", "on_demand", "mab"] },
+            "description": "Filter by seal type."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["completed", "pending", "failed"] },
+            "description": "Filter by document status."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 1 },
+            "description": "Page number."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 10 },
+            "description": "Number of items per page."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of documents.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "document_id": { "type": "string", "example": "60d5ec49f1b2c8a4e8d3f0a1" },
+                          "file_name": { "type": "string", "example": "contract.pdf" },
+                          "seal_type": { "type": "string", "enum": ["timestamp", "on_demand", "mab"] },
+                          "regulation": { "type": "string", "example": "ZertES" },
+                          "status": { "type": "string", "enum": ["completed", "pending", "failed"] },
+                          "created_at": { "type": "string", "format": "date-time" }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer", "example": 1 },
+                        "page": { "type": "integer", "example": 1 },
+                        "pages": { "type": "integer", "example": 1 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/seal/public/documents/{document_id}/download": {
+      "get": {
+        "tags": ["Documents"],
+        "summary": "Download a sealed document",
+        "operationId": "downloadDocument",
+        "description": "Downloads the sealed PDF for a completed document. A document that is still pending returns a `400` error until it finishes.",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The document ID returned when the seal was created."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The sealed PDF as an attachment stream.",
+            "content": {
+              "application/pdf": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "400": {
+            "description": "Document is still pending (or the request is invalid).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/seal-my-idea/v1/seal/verify/{token}": {
+      "get": {
+        "tags": ["Verification"],
+        "summary": "Verify a sealed document",
+        "operationId": "verifyDocument",
+        "description": "Publicly verifies a sealed document by its verification token. This is the URL encoded in the QR code stamped on sealed PDFs. No authentication required.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The verification token from the sealed document's QR code."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verification details for the sealed document (seal timestamp, regulation, signer details, validity).",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "404": {
+            "description": "No sealed document found for this token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/seal-my-idea/v1/seal/uaepass/verify/{token}": {
+      "get": {
+        "tags": ["Verification"],
+        "summary": "Verify a UAE Pass sealed document",
+        "operationId": "verifyUaePassDocument",
+        "description": "Publicly verifies a document sealed with a UAE Pass digital signature. No authentication required.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The verification token from the sealed document."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verification details for the UAE Pass sealed document.",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "404": {
+            "description": "No sealed document found for this token.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/seal-my-idea/v1/oauth/authorize-info": {
+      "get": {
+        "tags": ["OAuth"],
+        "summary": "Get client metadata for the consent screen",
+        "operationId": "oauthAuthorizeInfo",
+        "description": "Returns the OAuth client's display name and requested scopes for rendering the consent screen. Validates the client, redirect URI, and scope without issuing a code. Requires a logged-in SealMyIdea user (dashboard JWT).",
+        "security": [{ "userBearer": [] }],
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The OAuth client ID."
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The redirect URI registered for the client."
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Requested scope, e.g. `seal`."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client metadata for the consent screen.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean" },
+                    "client_name": { "type": "string" },
+                    "scopes": { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/seal-my-idea/v1/oauth/authorize": {
+      "post": {
+        "tags": ["OAuth"],
+        "summary": "Issue an authorization code (consent)",
+        "operationId": "oauthAuthorize",
+        "description": "Issues a single-use authorization code after the user grants consent. Requires a logged-in SealMyIdea user. Returns the redirect URL (including `code` and `state`) that the frontend sends the browser to.",
+        "security": [{ "userBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["client_id", "redirect_uri"],
+                "properties": {
+                  "response_type": { "type": "string", "default": "code", "description": "Must be `code`." },
+                  "client_id": { "type": "string" },
+                  "redirect_uri": { "type": "string", "description": "Must exactly match a redirect URI registered for the client." },
+                  "scope": { "type": "string", "example": "seal" },
+                  "state": { "type": "string", "description": "Opaque value echoed back on the redirect to prevent CSRF." },
+                  "decision": { "type": "string", "enum": ["allow", "deny"], "description": "The user's consent decision." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Redirect URL carrying the authorization code (or the deny redirect).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "redirect_url": { "type": "string", "example": "https://yourapp.com/callback?code=...&state=..." }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/seal-my-idea/v1/oauth/token": {
+      "post": {
+        "tags": ["OAuth"],
+        "summary": "Exchange a code or refresh token for an access token",
+        "operationId": "oauthToken",
+        "description": "Exchanges an authorization code, or rotates a refresh token, for a bearer access token. Client credentials are sent in the request body. The resulting access token (scope `seal`) can be used against the SealAPI via the `Authorization: Bearer` header.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["grant_type", "client_id", "client_secret"],
+                "properties": {
+                  "grant_type": { "type": "string", "enum": ["authorization_code", "refresh_token"] },
+                  "client_id": { "type": "string" },
+                  "client_secret": { "type": "string" },
+                  "code": { "type": "string", "description": "Required when `grant_type=authorization_code`. The single-use code from the authorize step." },
+                  "redirect_uri": { "type": "string", "description": "Required when `grant_type=authorization_code`. Must match the URI used in the authorize step." },
+                  "refresh_token": { "type": "string", "description": "Required when `grant_type=refresh_token`. Refresh tokens are rotated on every use." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "A token set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "access_token": { "type": "string", "description": "JWT bearer access token with scope `seal`." },
+                    "token_type": { "type": "string", "example": "bearer" },
+                    "expires_in": { "type": "integer", "description": "Access token lifetime in seconds." },
+                    "refresh_token": { "type": "string", "description": "Opaque refresh token (rotated on every refresh)." },
+                    "scope": { "type": "string", "example": "seal" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`invalid_grant` or `unsupported_grant_type`.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "`invalid_client` (bad client ID or secret).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/partner/generate-iframe-token": {
+      "post": {
+        "tags": ["Partner"],
+        "summary": "Generate an iframe session token",
+        "operationId": "partnerGenerateIframeToken",
+        "description": "Generates a single-use session key for embedding SealMyIdea in an iframe (lean handshake). The request body is an RSA-encrypted payload; see the partner integration guide for the encryption scheme.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PartnerEncryptedRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Single-use session key.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": { "type": "string", "description": "Single-use session key for the iframe." }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/PartnerBadRequest" },
+          "401": { "$ref": "#/components/responses/PartnerUnauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/v1/auth/partner/register-user": {
+      "post": {
+        "tags": ["Partner"],
+        "summary": "Register or sync a partner user",
+        "operationId": "partnerRegisterUser",
+        "description": "Registers a new SealMyIdea user under the partner, or synchronizes an existing one. The decrypted payload must contain `email`, `partner_user_id`, `fullname`, and `password` (optional: `ref_code`, `ref_link_id`, `page_source`).",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PartnerEncryptedRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User registered or synchronized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "User registered successfully" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "email": { "type": "string" },
+                        "isNew": { "type": "boolean", "description": "`true` when a new account was created, `false` when an existing account was synchronized." }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/PartnerBadRequest" },
+          "401": { "$ref": "#/components/responses/PartnerUnauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/v1/auth/partner/webhook": {
+      "post": {
+        "tags": ["Partner"],
+        "summary": "Send a partner webhook event",
+        "operationId": "partnerWebhook",
+        "description": "Inbound webhook for partner events (for example `contract_activated`). The decrypted payload must contain `type` and, for contract events, `email`.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PartnerEncryptedRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Event processed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "boolean", "example": true },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/PartnerBadRequest" },
+          "401": { "$ref": "#/components/responses/PartnerUnauthorized" },
+          "404": {
+            "description": "`RESOURCE_NOT_FOUND` - no user found for the given email.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PartnerErrorResponse" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sealApiToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "SealApiToken",
+        "description": "Your SealAPI token (starts with `tok_`). Shown on the dashboard under \"Your Secret Key\" and in Profile > API Key. Keep it server-side."
+      },
+      "oauthBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "OAuth 2.0 access token with scope `seal`, obtained via the authorization-code flow."
+      },
+      "userBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "A logged-in SealMyIdea user's dashboard JWT (used only on the OAuth consent endpoints)."
+      }
+    },
+    "parameters": {
+      "XTimezone": {
+        "name": "X-Timezone",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "example": "Europe/Zurich" },
+        "description": "IANA timezone used to format timestamps in the sealed document. Defaults to UTC."
+      }
+    },
+    "schemas": {
+      "Regulation": {
+        "type": "string",
+        "enum": ["ZertES", "eIDAS"],
+        "description": "Jurisdiction: `ZertES` (Swiss law) or `eIDAS` (EU law). Case-sensitive; lowercase values are rejected."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "boolean", "example": false },
+          "message": { "type": "string", "description": "Human-readable error description." },
+          "error": { "type": "string", "description": "Machine-readable error code, e.g. `UNSUPPORTED_REGULATION`." }
+        }
+      },
+      "PartnerEncryptedRequest": {
+        "type": "object",
+        "required": ["encryptedPayload"],
+        "properties": {
+          "encryptedPayload": {
+            "type": "string",
+            "description": "Base64-encoded RSA-OAEP (SHA-256) encrypted JSON payload. Must always include `clientId` and `clientSecret`, plus the endpoint-specific fields. Encrypted with the SealMyIdea public key provided during partner onboarding."
+          }
+        }
+      },
+      "PartnerErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "boolean", "example": false },
+          "code": { "type": "string", "example": "INVALID_PAYLOAD" },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request - missing file, unsupported regulation, invalid seal type, or malformed parameters.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "`MISSING_TOKEN` - the `SealApiToken` header (or Bearer token) is missing.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "`INVALID_TOKEN` - token is invalid or the call quota is exhausted.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "`RATE_LIMIT_EXCEEDED` - too many requests. Check the `Retry-After` header and retry with exponential backoff.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "`PDF_PARSE_ERROR`, `SIGNING_FAILED`, or `SERVER_ERROR` - retry once, then contact support.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+          }
+        }
+      },
+      "PartnerBadRequest": {
+        "description": "`INVALID_PAYLOAD` - missing `encryptedPayload` or required decrypted fields.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/PartnerErrorResponse" }
+          }
+        }
+      },
+      "PartnerUnauthorized": {
+        "description": "`DECRYPTION_FAILED` or invalid partner credentials.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/PartnerErrorResponse" }
+          }
+        }
+      }
+    }
+  }
+}

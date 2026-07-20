@@ -1,0 +1,59 @@
+---
+title: "Folder sealing"
+description: "Seal multiple files, or multiple versions of one document, together under a single folder."
+icon: "folder-closed"
+---
+
+Folder sealing groups files under one logical container and seals them together. A folder represents the lifecycle of a document or idea: each sealing creates a **version**, and every version is sealed independently. The result is a trust trail showing when each version existed and that it was sealed under your authority.
+
+## How it works
+
+<Steps>
+  <Step title="Create a folder and upload files">
+    In the web app, create a folder in **My Ideas** and upload one or more PDF
+    files. Uploads are validated up front: locked, password-protected,
+    oversized, or malformed PDFs are rejected with a clear error before
+    sealing. Via the SealAPI, each upload call either creates a folder or adds
+    a new version to an existing one.
+  </Step>
+  <Step title="Choose the seal type">
+    Pick **Trusted Timestamp** (a qualified timestamp seal, uses
+    folder-sealing credits) or **On Demand** (a Swisscom qualified electronic
+    signature, uses e-Signature credits).
+  </Step>
+  <Step title="Seal">
+    Sealing runs in the background. All files in the folder are sealed
+    together in one operation. You are notified in-app and by email when it
+    completes; you do not need to stay on the page.
+  </Step>
+  <Step title="Download the results">
+    Each sealed version offers two downloads: a **ZIP** of the sealed files
+    and a **PDF with proof** (the sealing certificate).
+  </Step>
+</Steps>
+
+## Versions
+
+- Every new upload or re-seal creates a new version (1, 2, 3, ...)
+- Each version is sealed independently and has its own status (Draft, In Review, Sealed)
+- The folder's overall badge rolls up its versions: it shows **Sealed** only when every version is sealed. A folder showing Draft after you sealed it usually means a newer, not-yet-sealed version exists.
+- Earlier sealed versions remain fully valid regardless of later versions
+
+A typical use: seal the original German contract as version 1, then upload the French translation to the same folder as version 2. The folder now holds a trusted history of both.
+
+<Warning>
+  The ZIP package of a sealed version can be downloaded **only once**. After
+  that, the download is disabled permanently for that version. Individual
+  files can be downloaded one by one only while the version is still a draft;
+  once sealed, the files exist only inside the ZIP.
+</Warning>
+
+## Other facts
+
+- Sealing is irreversible; a sealed folder can be renamed, but the seal itself never changes
+- A sealed idea can additionally be registered with the **US Copyright Office** from the folder
+- Folders sealed through the SealAPI appear in the dashboard's Folder Sealing page with the same version history and downloads
+
+## Seal folders via the API
+
+The SealAPI exposes upload, status, and download endpoints for folder sealing. See the [folder sealing flow guide](/guides/folder-seal-flow) and the API reference.

@@ -1,0 +1,56 @@
+---
+title: "Certificate sealing"
+description: "Create certificates from a PDF or template, collect signatures, and seal them."
+icon: "file-certificate"
+---
+
+Certificate Management is a premium feature for creating and digitally sealing certificates: diplomas, attestations, memberships, or any document issued under your authority. Each sealing operation consumes one Certificate Seal Credit.
+
+## Two ways to create a certificate
+
+<Columns cols={2}>
+  <Card title="Upload your own PDF" icon="file-arrow-up">
+    Upload a finished PDF, then position the QR code overlay anywhere on the
+    document in the certificate editor before sealing.
+  </Card>
+  <Card title="Use a template" icon="table-layout">
+    Pick a template, fill in its fields (certificate name, company name,
+    dates), save, and seal the generated certificate.
+  </Card>
+</Columns>
+
+In both cases you choose the regulation at sealing time: **eIDAS** (EU compliance) or **ZertES** (Swiss compliance). Status moves Draft, then In Review, then Sealed.
+
+## Signature options
+
+Beyond the plain seal, a certificate can carry personal signatures collected before sealing:
+
+| Variant | What it adds |
+|---|---|
+| **Standard** | Plain seal, no personal signature |
+| **e-Seal (QR seal)** | Organization e-seal with the QR verification code |
+| **e-Signature (Mobile ID QES)** | Qualified electronic signatures via Swisscom Mobile ID; multiple signers each confirm on their phone |
+| **e-Seal + e-Signature** | Both combined on one certificate |
+| **Hand-sign + timestamp** | A drawn or uploaded visual signature plus the timestamp seal |
+| **Hand-sign + Mobile ID QES** | A hand-drawn signature combined with a single-signer qualified signature |
+
+<Note>
+  Hand-signing is a visual signature that documents consent; it is not a
+  qualified electronic signature on its own, which is why it is always
+  combined with a seal or a QES.
+</Note>
+
+## Multi-signer certificates
+
+- The owner can invite co-signers, including external people for hand-signing. Invited hand-signers receive a personal signing link and need no account.
+- The owner can choose to sign **last**, after everyone else.
+- Pending signers can be **revoked**, and their reminder emails can be stopped.
+- Signing links are personal and expire. Once a certificate is sealed, no further signatures can be added.
+
+When all signatures are in and sealing completes, the owner receives a real-time notification and the final signed PDF is emailed automatically.
+
+## After sealing
+
+- Sealed certificates show a green Sealed badge and can only be viewed or deleted, never edited
+- The sealed PDF is available via the Download Certificate button
+- Anyone can verify the result in the [Doc Validator](/sealing/verification)

@@ -1,0 +1,73 @@
+---
+title: "Quickstart"
+description: "Seal your first PDF with the SealAPI in minutes."
+icon: "rocket"
+---
+
+This guide takes you from zero to a sealed, legally timestamped PDF using a single API call.
+
+## Prerequisites
+
+- A SealMyIdea account with API credits (get one from the dashboard)
+- Your API token, shown on the dashboard under **Your Secret Key** and in **Profile > API Key**
+- A valid PDF file that is not password-protected
+
+## Seal your first document
+
+<Steps>
+  <Step title="Get your API token">
+    Log in to the SealAPI dashboard and copy your token from **Dashboard >
+    API Keys**. Tokens start with `tok_`. Keep it server-side; never expose it
+    in frontend code.
+
+    ![API token location on the dashboard](/images/dashboard-api-token.png)
+  </Step>
+  <Step title="Choose your regulation">
+    Pick the legal framework your document must comply with: `ZertES` (Swiss
+    law) or `eIDAS` (EU law). Values are case-sensitive.
+  </Step>
+  <Step title="Make the request">
+    Send the PDF as `multipart/form-data`:
+
+    ```bash
+    curl -X POST "https://api.sealmyidea.com/api/seal/public/seal-my-data" \
+      -H "SealApiToken: tok_YOUR_TOKEN" \
+      -H "X-Timezone: Europe/Zurich" \
+      -F "pdf=@document.pdf" \
+      -F "regulation=ZertES" \
+      -F "seal_type=timestamp" \
+      -F 'signature_details={"name":"Jane","surname":"Doe"}' \
+      -o sealed-document.pdf
+    ```
+
+    `signature_details` must be a JSON **string** with at least 2 keys; all
+    keys (up to 10) are rendered in the visual signature box on the PDF.
+  </Step>
+  <Step title="Open the sealed PDF">
+    The response body is the sealed PDF itself. It now carries an embedded
+    qualified timestamp signature, a visual signature box, and a QR code
+    anyone can scan to verify the document.
+  </Step>
+</Steps>
+
+## Where to go next
+
+<Columns cols={2}>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Token security, the optional timezone header, and OAuth-based access.
+  </Card>
+  <Card title="API reference" icon="terminal" href="/api-reference/introduction">
+    Every endpoint with an interactive playground.
+  </Card>
+  <Card title="MAB multi-signer flow" icon="users" href="/guides/mab-flow">
+    Collect qualified signatures from up to 21 people.
+  </Card>
+  <Card title="Folder sealing flow" icon="folder-closed" href="/guides/folder-seal-flow">
+    Seal versioned document sets and download proof certificates.
+  </Card>
+</Columns>
+
+<Tip>
+  Need help? Reach out to
+  [support@sealmyidea.com](mailto:support@sealmyidea.com).
+</Tip>

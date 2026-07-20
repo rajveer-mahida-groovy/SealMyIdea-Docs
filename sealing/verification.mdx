@@ -1,0 +1,37 @@
+---
+title: "Verification"
+description: "How anyone can check that a sealed document is authentic and unchanged."
+icon: "shield-check"
+---
+
+Every seal is designed to be verified by anyone, without a SealMyIdea account, subscription, or credits.
+
+## QR code on the sealed PDF
+
+Each sealed document carries a QR code in its visual signature box. Scanning it opens a public verification page for that exact document, resolved through a unique verification token. The page shows the seal details so a third party holding a printout can confirm the original.
+
+The same check is available programmatically through the public verify endpoint (no authentication required); see the API reference.
+
+## Doc Validator
+
+The **Doc Validator** checks whether a PDF was sealed on SealMyIdea and whether its qualified signature is still valid. It supports **eIDAS**, **ZertES**, and **UAE Pass** signatures.
+
+Drag and drop a PDF; validation runs automatically and shows:
+
+- Document name, seal ID, and a signature-count summary
+- A green **Valid** badge when the signature checks out
+- Full signer certificate details: signature type, initial signature time, valid-until date, certificate subject, issuer, and serial number
+
+A **Download report as PDF** button produces a formal validation report, useful for legal and compliance purposes.
+
+## Validation statuses
+
+| Status | Meaning |
+|---|---|
+| **Valid** | Signature intact; the document has not changed since sealing |
+| **Invalid** | Signature failed verification; the document may have been altered |
+| **No signature found** | The PDF was never sealed on SealMyIdea, or is not a sealed PDF |
+
+## Why seals stay verifiable
+
+Seals embed long-term validation (LTV) data alongside the PAdES signature: certificate chains and revocation information are stored inside the PDF itself. A sealed document therefore remains verifiable years later, even after the signing certificates expire.
